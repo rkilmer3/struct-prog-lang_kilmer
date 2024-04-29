@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.34407.143
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RecursiveDescentParser", "RecursiveDescentParser\RecursiveDescentParser.vcxproj", "{3EA02D8B-B8B6-4750-8D5E-D7AE2A8FC045}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3EA02D8B-B8B6-4750-8D5E-D7AE2A8FC045}.Debug|x64.ActiveCfg = Debug|x64
+		{3EA02D8B-B8B6-4750-8D5E-D7AE2A8FC045}.Debug|x64.Build.0 = Debug|x64
+		{3EA02D8B-B8B6-4750-8D5E-D7AE2A8FC045}.Debug|x86.ActiveCfg = Debug|Win32
+		{3EA02D8B-B8B6-4750-8D5E-D7AE2A8FC045}.Debug|x86.Build.0 = Debug|Win32
+		{3EA02D8B-B8B6-4750-8D5E-D7AE2A8FC045}.Release|x64.ActiveCfg = Release|x64
+		{3EA02D8B-B8B6-4750-8D5E-D7AE2A8FC045}.Release|x64.Build.0 = Release|x64
+		{3EA02D8B-B8B6-4750-8D5E-D7AE2A8FC045}.Release|x86.ActiveCfg = Release|Win32
+		{3EA02D8B-B8B6-4750-8D5E-D7AE2A8FC045}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {8EE249A9-3247-4217-8710-4F32CA8567B6}
+	EndGlobalSection
+EndGlobal
