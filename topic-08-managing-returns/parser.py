@@ -1,7 +1,17 @@
 from tokenizer import tokenize
 
+# // Define basic tokenizer elements 
+
+# number = /([0-9]+(\.[0-9]+)?([eE][-+]?[0-9]+)?)/; // Supports integers, floating-point numbers, and scientific notation
+# boolean = "true" | "false"; // Boolean literals
+# identifier = /[a-zA-Z_][a-zA-Z0-9_]*/; // Variable names, function names
+# string = /"([^"\\]|\\.)*"/; // String literals with escaped quotes
+
 grammar = """
-arithmetic_factor = <number> | <boolean> | <identifier> [ expression_list ] | "(" expression ")" | "-" arithmetic_factor | function_expression;
+
+simple_expression = <number> | <boolean> | <identifier> | "(" expression ")" | "-" simple_expression | function_expression;
+callable_expression = simple_expression [ expression_list ];
+arithmetic_factor = callable_expression;
 arithmetic_term = arithmetic_factor { ("*" | "/") arithmetic_factor };
 arithmetic_expression = arithmetic_term { ("+" | "-") arithmetic_term };
 relational_expression = arithmetic_expression { ("<" | ">" | "<=" | ">=" | "==" | "!=") arithmetic_expression };
@@ -42,9 +52,9 @@ def t(code):
     return tokenize(code) + [{"tag": None}]
 
 
-def parse_arithmetic_factor(tokens):
+def parse_simple_expression(tokens):
     """
-    arithmetic_factor = <number> | <boolean> | <identifier> [ expression_list ] | "(" expression ")" | "-" arithmetic_factor | function_expression;
+    simple_expression = <number> | <boolean> | <identifier> | "(" expression ")" | "-" simple_expression | function_expression;
     """
     token = tokens[0]
     tag = token["tag"]
@@ -53,23 +63,14 @@ def parse_arithmetic_factor(tokens):
     if tag == "<boolean>":
         return {"tag": "<boolean>", "value": token["value"]}, tokens[1:]
     if tag == "<identifier>":
-        node = {"tag": "<identifier>", "value": token["value"]}
-        tokens = tokens[1:]
-        if tokens[0]["tag"] == "(":
-            arguments, tokens = parse_expression_list(tokens)
-            node = {
-                "tag": "<function_call>",
-                "identifier": node,
-                "arguments": arguments
-            }
-        return node, tokens
+        return {"tag": "<identifier>", "value": token["value"]}, tokens[1:]
     if tag == "(":
-        node, tokens = parse_relational_expression(tokens[1:])
+        node, tokens = parse_expression(tokens[1:])
         if tokens[0]["tag"] != ")":
             raise Exception("Expected ')'")
         return node, tokens[1:]
     if tag == "-":
-        node, tokens = parse_arithmetic_factor(tokens[1:])
+        node, tokens = parse_simple_expression(tokens[1:])
         return {"tag": "negate", "value": node}, tokens
     if tag == "function":
         return parse_function_expression(tokens)
@@ -77,31 +78,58 @@ def parse_arithmetic_factor(tokens):
     raise Exception(f"Unexpected token: {tokens[0]}")
 
 
-def test_parse_arithmetic_factor():
+def test_parse_simple_expression():
     """
-    arithmetic_factor = <number> | <boolean> | <identifier> [ expression_list ] | "(" expression ")" | "-" arithmetic_factor | function_expression;
+    simple_expression = <number> | <boolean> | <identifier> | "(" expression ")" | "-" simple_expression | function_expression;
     """
-    assert parse_arithmetic_factor(t("1"))[0] == {"tag": "<number>", "value": 1}
-    assert parse_arithmetic_factor(t("1.2"))[0] == {"tag": "<number>", "value": 1.2}
-    assert parse_arithmetic_factor(t("true"))[0] == {"tag": "<boolean>", "value": 1}
-    assert parse_arithmetic_factor(t("false"))[0] == {"tag": "<boolean>", "value": 0}
-    assert parse_arithmetic_factor(t("x"))[0] == {"tag": "<identifier>", "value": "x"}
-    ast = parse_arithmetic_factor(t("x()"))[0]
+    assert parse_simple_expression(t("1"))[0] == {"tag": "<number>", "value": 1}
+    assert parse_simple_expression(t("1.2"))[0] == {"tag": "<number>", "value": 1.2}
+    assert parse_simple_expression(t("true"))[0] == {"tag": "<boolean>", "value": 1}
+    assert parse_simple_expression(t("false"))[0] == {"tag": "<boolean>", "value": 0}
+    assert parse_simple_expression(t("x"))[0] == {"tag": "<identifier>", "value": "x"}
+
+    assert parse_simple_expression(t("-1"))[0] == {
+        "tag": "negate",
+        "value": {"tag": "<number>", "value": 1},
+    }
+
+def parse_callable_expression(tokens):
+    """
+    callable_expression = simple_expression [ expression_list ];
+    """
+    expression, tokens = parse_simple_expression(tokens)
+    while tokens[0]["tag"] == "(":
+        arguments, tokens = parse_expression_list(tokens)
+        expression = {
+            "tag": "<function_call>",
+            "expression": expression,
+            "arguments": arguments,
+        }
+    return expression, tokens
+
+def test_parse_callable_expression():
+    """
+    callable_expression = simple_expression [ expression_list ];
+    """
+    for expression in ["1","1.2","true","x","-1"]:
+        assert parse_callable_expression(t(expression))[0] == parse_simple_expression(t(expression))[0]
+
+    ast = parse_callable_expression(t("x()"))[0]
     assert ast == {
         "tag": "<function_call>",
-        "identifier": {"tag": "<identifier>", "value": "x"},
+        "expression": {"tag": "<identifier>", "value": "x"},
         "arguments": None,
     }
-    ast = parse_arithmetic_factor(t("x(1)"))[0]
+    ast = parse_callable_expression(t("x(1)"))[0]
     assert ast == {
         "tag": "<function_call>",
-        "identifier": {"tag": "<identifier>", "value": "x"},
+        "expression": {"tag": "<identifier>", "value": "x"},
         "arguments": {"tag": "<number>", "value": 1},
     }
-    ast = parse_arithmetic_factor(t("x(1,2+3)"))[0]
+    ast = parse_callable_expression(t("x(1,2+3)"))[0]
     assert ast == {
         "tag": "<function_call>",
-        "identifier": {"tag": "<identifier>", "value": "x"},
+        "expression": {"tag": "<identifier>", "value": "x"},
         "arguments": {
             "tag": "<number>",
             "value": 1,
@@ -112,11 +140,33 @@ def test_parse_arithmetic_factor():
             },
         },
     }
-
-    assert parse_arithmetic_factor(t("-1"))[0] == {
-        "tag": "negate",
-        "value": {"tag": "<number>", "value": 1},
+    ast = parse_callable_expression(t("x()(1,2)"))[0]
+    assert ast == {
+        "tag": "<function_call>",
+        "expression": {
+            "tag": "<function_call>",
+            "expression": {"tag": "<identifier>", "value": "x"},
+            "arguments": None,
+        },
+        "arguments": {
+            "tag": "<number>",
+            "value": 1,
+            "next": {"tag": "<number>", "value": 2},
+        },
     }
+
+def parse_arithmetic_factor(tokens):
+    """
+    arithmetic_factor = callable_expression;
+    """
+    return parse_callable_expression(tokens)
+
+def test_parse_arithmetic_factor():
+    """
+    arithmetic_factor = callable_expression;
+    """
+    for expression in ["1","1.2","true","x","-1"]:
+        assert parse_arithmetic_factor(t(expression))[0] == parse_callable_expression(t(expression))[0]
 
 
 def parse_arithmetic_term(tokens):
@@ -221,6 +271,7 @@ def test_parse_arithmetic_expression():
         },
         "right": {"tag": "<identifier>", "value": "z"},
     }
+
 
 def parse_relational_expression(tokens):
     """
@@ -399,7 +450,6 @@ def parse_expression(tokens):
     expression = logical_expression;
     """
     return parse_logical_expression(tokens)
-
 
 def test_parse_expression():
     """
@@ -940,6 +990,8 @@ def test_format():
 
 if __name__ == "__main__":
     for f in [
+        test_parse_simple_expression,
+        test_parse_callable_expression,
         test_parse_arithmetic_factor,
         test_parse_arithmetic_term,
         test_parse_arithmetic_expression,

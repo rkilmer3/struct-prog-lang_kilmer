@@ -27,9 +27,9 @@ def evaluate(ast, environment):
         return ast, False
 
     if ast["tag"] == "<function_call>":
-        assert "identifier" in ast
+        assert "expression" in ast
         assert "arguments" in ast
-        function, _ = evaluate(ast["identifier"], environment)
+        function, _ = evaluate(ast["expression"], environment)
         assert function["tag"] == "function"
         assert "parameters" in function
         assert "body" in function
@@ -438,7 +438,6 @@ def test_evaluate_square_root_function():
     assert result == 3
     code = """
         function squareRoot(number) {
-            tolerance = 0.00000001;
             guess = number / 2;
             while (abs(guess * guess - number) > tolerance) {
                 guess = (guess + number / guess) / 2; 
@@ -447,10 +446,41 @@ def test_evaluate_square_root_function():
         }    
     """
     result, _ = ev(code, environment)
+    result, _ = ev("tolerance = 0.00000001;", environment)
     result, _ = ev("squareRoot(16);", environment)
-    print(result)
+    print([result])
     result, _ = ev("print(squareRoot(16));", environment)
+    result, _ = ev("print(squareRoot(9));", environment)
+    result, _ = ev("print(squareRoot(4));", environment)
+    result, _ = ev("print(tolerance);", environment)
 
+def test_evaluate_expression_function_call():
+    print("test evaluate expression_function_call.")
+    def ev(code, environment):
+        return evaluate(parse(tokenize(code)), environment)
+    environment = {}
+    code = """
+        function abs(x) {
+            if (x > 0) { return x; } else {return -x;}
+        }
+    """
+    result, _ = ev(code, environment)
+    result, _ = ev("abs(-2)", environment)
+    assert result == 2
+    code = """
+        function absf() {
+            return abs
+        }
+    """
+    result, _ = ev(code, environment)
+    result, _ = ev("absf", environment)
+    result, _ = ev("absf()", environment)
+    result, _ = ev("absf()(-3)", environment)
+    print(result)
+    result, _ = ev("function(x) {return x*x} (4)", environment)
+    print(result)
+
+ 
 if __name__ == "__main__":
     print("test evaluator...")
     test_evaluate_single_value()
@@ -473,4 +503,6 @@ if __name__ == "__main__":
     test_evaluate_return_statement()
     test_evaluate_function_call()
     test_evaluate_square_root_function()
+    test_evaluate_expression_function_call()
+
     print("done.")
